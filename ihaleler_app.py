@@ -54,16 +54,12 @@ def main():
         else:
             register()
     else:
-        # ... kalan kod ...
-
-# ----------- Profil Bilgileri (İlk Kayıt Sonrası) -------------
-
-def get_profile_info():
-    st.subheader("Profil Bilgileri - İlk Kayıt")
-    garage_level = st.number_input("Garaj Seviyeniz", min_value=1, max_value=100, step=1)
-    vehicle_count = st.number_input("Araç Sayınız", min_value=0, step=1)
-    vehicle_names = []
-    for i in range(vehicle_count):
+            def get_profile_info():
+               st.subheader("Profil Bilgileri - İlk Kayıt")
+                garage_level = st.number_input("Garaj Seviyeniz", min_value=1, max_value=100, step=1)
+                vehicle_count = st.number_input("Araç Sayınız", min_value=0, step=1)
+                 vehicle_names = []
+     for i in range(vehicle_count):
         name = st.text_input(f"Araç {i+1} Adı", key=f"vehicle_name_{i}")
         vehicle_names.append(name)
     trailer_count = st.number_input("Toplam Dorse Sayınız", min_value=0, step=1)
