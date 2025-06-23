@@ -28,7 +28,6 @@ def register():
                 "operasyonel_giderler": []
             }
             st.success("Kayıt başarılı! Lütfen giriş yapın.")
-
 def login():
     st.subheader("Giriş Yap")
     username = st.text_input("Kullanıcı Adı", key="login_username")
@@ -36,14 +35,26 @@ def login():
     if st.button("Giriş Yap"):
         if username in st.session_state.users and st.session_state.users[username]["password"] == password:
             st.session_state.logged_in_user = username
-            st.success(f"Hoşgeldin {username}!")
-            st.experimental_rerun()
+            return True  # Başarılı giriş
         else:
             st.error("Kullanıcı adı veya şifre yanlış.")
+    return False
 
-def logout():
-    st.session_state.logged_in_user = None
-    st.experimental_rerun()
+# Ana döngede
+
+def main():
+    st.title("İhale Oyunu Takip Uygulaması")
+
+    if st.session_state.logged_in_user is None:
+        secim = st.radio("Giriş veya Kayıt Ol", ["Giriş Yap", "Kayıt Ol"])
+        if secim == "Giriş Yap":
+            giris_basari = login()
+            if giris_basari:
+                st.experimental_rerun()
+        else:
+            register()
+    else:
+        # ... kalan kod ...
 
 # ----------- Profil Bilgileri (İlk Kayıt Sonrası) -------------
 
