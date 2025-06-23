@@ -1,56 +1,40 @@
 import streamlit as st
-import json
-from firebase_admin import credentials, initialize_app, firestore
-import pyrebase
+from datetime import datetime, timedelta
+import pandas as pd
+import matplotlib.pyplot as plt
 
-firebase_secrets = st.secrets["firebase"]
+import firebase_admin
+from firebase_admin import credentials, firestore
 
-cred_dict = {
-    "type": firebase_secrets["type"],
-    "project_id": firebase_secrets["project_id"],
-    "private_key_id": firebase_secrets["private_key_id"],
-    "private_key": firebase_secrets["private_key"].replace("\\n", "\n"),
-    "client_email": firebase_secrets["client_email"],
-    "client_id": firebase_secrets["client_id"],
-    "auth_uri": firebase_secrets["auth_uri"],
-    "token_uri": firebase_secrets["token_uri"],
-    "auth_provider_x509_cert_url": firebase_secrets["auth_provider_x509_cert_url"],
-    "client_x509_cert_url": firebase_secrets["client_x509_cert_url"],
-}
+# Firebase Admin SDK'yı başlat
+if not firebase_admin._apps:
+    cred = credentials.Certificate("firebase_service_account.json")
+    firebase_admin.initialize_app(cred)
 
-cred = credentials.Certificate(cred_dict)
-initialize_app(cred)
 db = firestore.client()
 
-firebaseConfig = {
-    "apiKey": firebase_secrets["apiKey"],
-    "authDomain": firebase_secrets["authDomain"],
-    "databaseURL": firebase_secrets["databaseURL"],
-    "projectId": firebase_secrets["projectId"],
-    "storageBucket": firebase_secrets["storageBucket"],
-    "messagingSenderId": firebase_secrets["messagingSenderId"],
-    "appId": firebase_secrets["appId"],
-}
+# ------------------- Firestore Veri Fonksiyonları -------------------
 
-firebase = pyrebase.initialize_app(firebaseConfig)
-auth = firebase.auth()
-
-
-DOSYA_ADI = "users.json"
-
-# ------------------- Kalıcı Veri Fonksiyonları -------------------
 def kayitlari_yukle():
-    if os.path.exists(DOSYA_ADI):
-        with open(DOSYA_ADI, "r", encoding="utf-8") as f:
-            return json.load(f)
-    else:
-        return {}
+    users_ref = db.collection('users')
+    docs = users_ref.stream()
+    kullanicilar = {}
+    for doc in docs:
+        kullanicilar[doc.id] = doc.to_dict()
+    return kullanicilar
 
 def kayitlari_kaydet(kullanicilar):
-    with open(DOSYA_ADI, "w", encoding="utf-8") as f:
-        json.dump(kullanicilar, f, indent=4, ensure_ascii=False)
+    users_ref = db.collection('users')
+    # Tüm kullanıcıları temizle (küçük projeler için kabul edilir)
+    docs = users_ref.stream()
+    for doc in docs:
+        users_ref.document(doc.id).delete()
+    # Güncel kullanıcıları ekle
+    for username, data in kullanicilar.items():
+        users_ref.document(username).set(data)
 
 # ------------------- Sayiyi Okunabilir Yap -------------------
+
 def sayi_formatla(sayi):
     if sayi >= 1_000_000:
         milyon = sayi // 1_000_000
@@ -77,13 +61,14 @@ def sayi_formatla(sayi):
         return str(sayi)
 
 # ------------------- Kullanıcı Girişi -------------------
+
 def login():
     st.subheader("Giriş Yap")
-    username = st.text_input("Kullanıcı Adı")
-    password = st.text_input("Şifre", type="password")
+    username = st.text_input("Kullanıcı Adı", key="login_username")
+    password = st.text_input("Şifre", type="password", key="login_password")
 
     if st.button("Giriş Yap"):
-        users = st.session_state["users"]
+        users = st.session_state.get("users", {})
         if username in users and users[username]["password"] == password:
             st.session_state["logged_in_user"] = username
             st.success(f"Hoşgeldin {username}!")
@@ -92,16 +77,17 @@ def login():
             st.error("Kullanıcı adı veya şifre yanlış.")
 
 # ------------------- Kayıt Ol -------------------
+
 def register():
     st.subheader("Kayıt Ol")
-    username = st.text_input("Yeni Kullanıcı Adı")
-    password = st.text_input("Yeni Şifre", type="password")
+    username = st.text_input("Yeni Kullanıcı Adı", key="register_username")
+    password = st.text_input("Yeni Şifre", type="password", key="register_password")
 
     if st.button("Kayıt Ol"):
-        users = st.session_state["users"]
+        users = st.session_state.get("users", {})
         if username in users:
             st.error("Bu kullanıcı adı zaten alınmış.")
-        elif username == "" or password == "":
+        elif username.strip() == "" or password.strip() == "":
             st.error("Kullanıcı adı ve şifre boş olamaz.")
         else:
             users[username] = {"password": password, "profile": None, "ihaleler": [], "operasyonel_giderler": []}
@@ -110,6 +96,7 @@ def register():
             st.experimental_rerun()
 
 # ------------------- Profil Bilgisi -------------------
+
 def get_profile_info():
     st.subheader("Profil Bilgilerinizi Girin")
 
@@ -148,10 +135,8 @@ def get_profile_info():
         kayitlari_kaydet(users)
         st.success("Profil bilgileri kaydedildi.")
 
-
-
-
 # ------------------- İhale Girişi -------------------
+
 def ihale_girisi():
     st.subheader("İhale Girişi")
 
@@ -161,7 +146,7 @@ def ihale_girisi():
     urun_sayisi = st.number_input("Ürün Sayısı (Adet)", min_value=0)
 
     if st.button("İhale Kaydet"):
-        if ihale_turu == "":
+        if ihale_turu.strip() == "":
             st.error("İhale türü boş olamaz.")
             return
         username = st.session_state["logged_in_user"]
@@ -180,6 +165,7 @@ def ihale_girisi():
         st.success("İhale kaydedildi.")
 
 # ------------------- Operasyonel Giderler -------------------
+
 def operasyonel_giderler():
     st.subheader("Operasyonel Giderler")
 
@@ -269,6 +255,7 @@ def operasyonel_giderler():
         st.experimental_rerun()
 
 # ------------------- Günlük Rapor -------------------
+
 def gunluk_rapor():
     st.subheader("Günlük Rapor")
 
@@ -294,6 +281,7 @@ def gunluk_rapor():
     st.write(f"Günlük Toplam Kar: {sayi_formatla(int(toplam_kar))} $")
 
 # ------------------- Haftalık / Aylık Rapor -------------------
+
 def haftalik_aylik_rapor():
     st.subheader("Haftalık / Aylık Rapor")
 
@@ -324,105 +312,40 @@ def haftalik_aylik_rapor():
     st.write(f"{rapor_tipi} Operasyonel Maliyet: {sayi_formatla(int(toplam_operasyonel_maliyet))} $")
     st.write(f"{rapor_tipi} Toplam Kar: {sayi_formatla(int(toplam_kar))} $")
 
-# ------------------- Grafiksel Rapor -------------------
-def grafiksel_rapor():
-    st.subheader("Grafiksel Raporlar")
+# ------------------- Ana Sayfa -------------------
 
-    user = st.session_state["users"][st.session_state["logged_in_user"]]
-    ihaleler = user.get("ihaleler", [])
-    giderler = user.get("operasyonel_giderler", [])
-
-    st.markdown("**Tarih Aralığı Seçin**")
-    baslangic = st.date_input("Başlangıç Tarihi", value=datetime.now().date() - timedelta(days=30))
-    bitis = st.date_input("Bitiş Tarihi", value=datetime.now().date())
-
-    ihaleler_filtreli = [ih for ih in ihaleler if baslangic <= datetime.strptime(ih["tarih"], "%Y-%m-%d %H:%M:%S").date() <= bitis]
-    giderler_filtreli = [gd for gd in giderler if baslangic <= datetime.strptime(gd["tarih"], "%Y-%m-%d %H:%M:%S").date() <= bitis]
-
-    if not ihaleler_filtreli:
-        st.warning("Seçilen tarihlerde ihale verisi bulunamadı.")
-        return
-
-    st.markdown("### İhale Türü Dağılımı")
-    tur_sayilari = {}
-    for ih in ihaleler_filtreli:
-        tur = ih["ihale_turu"]
-        tur_sayilari[tur] = tur_sayilari.get(tur, 0) + 1
-    tur_df = pd.DataFrame({"Tür": list(tur_sayilari.keys()), "Adet": list(tur_sayilari.values())})
-    fig1, ax1 = plt.subplots()
-    ax1.pie(tur_df["Adet"], labels=tur_df["Tür"], autopct='%1.1f%%', startangle=90)
-    ax1.axis('equal')
-    st.pyplot(fig1)
-
-    st.markdown("### İhale Türlerine Göre Gelirler")
-    gelirler = {}
-    for ih in ihaleler_filtreli:
-        tur = ih["ihale_turu"]
-        gelirler[tur] = gelirler.get(tur, 0) + ih["ihale_bedeli"]
-    gelir_df = pd.DataFrame({"Tür": list(gelirler.keys()), "Gelir": list(gelirler.values())})
-    fig2, ax2 = plt.subplots()
-    ax2.bar(gelir_df["Tür"], gelir_df["Gelir"], color='green')
-    ax2.set_ylabel("Gelir ($)")
-    st.pyplot(fig2)
-
-    st.markdown("### Operasyonel Gider Dağılımı")
-    if not giderler_filtreli:
-        st.info("Henüz operasyonel gider girişi yapılmadı.")
-        return
-    gider_turleri = {}
-    for gd in giderler_filtreli:
-        tur = gd.get("kategori", "Bilinmeyen")
-        gider_turleri[tur] = gider_turleri.get(tur, 0) + gd["tutar"]
-    gider_df = pd.DataFrame({"Kategori": list(gider_turleri.keys()), "Tutar": list(gider_turleri.values())})
-    fig3, ax3 = plt.subplots()
-    ax3.bar(gider_df["Kategori"], gider_df["Tutar"], color='red')
-    ax3.set_ylabel("Gider ($)")
-    st.pyplot(fig3)
-
-# ------------------- Ana Fonksiyon -------------------
 def main():
-    # Kullanıcı verilerini yükle
+    st.title("İhale ve Operasyon Takip Uygulaması")
+
+    # Kullanıcı verilerini yükle (Firestore'dan)
     if "users" not in st.session_state:
         st.session_state["users"] = kayitlari_yukle()
 
-    # Giriş yapılıp yapılmadığını kontrol et
     if "logged_in_user" not in st.session_state:
-        st.session_state["logged_in_user"] = None
+        login()
+        st.info("Henüz hesabınız yoksa Kayıt Ol sekmesine geçiniz.")
+        st.stop()
 
-    if st.session_state["logged_in_user"] is None:
-        secim = st.radio("Seçim yapınız", ("Giriş Yap", "Kayıt Ol"))
-        if secim == "Giriş Yap":
-            login()
-        else:
-            register()
-    else:
-        st.sidebar.title(f"Hoşgeldin, {st.session_state['logged_in_user']}")
+    # Giriş yapmış kullanıcı
+    kullanici = st.session_state["logged_in_user"]
+    st.sidebar.write(f"Hoşgeldiniz, **{kullanici}**")
+    secim = st.sidebar.radio("Menü", ["Profil", "İhale Girişi", "Operasyonel Giderler", "Günlük Rapor", "Haftalık/Aylık Rapor", "Çıkış", "Kayıt Ol"])
 
-        sayfa = st.sidebar.selectbox("Sayfa Seçin", [
-            "Profil Bilgileri",
-            "İhale Girişi",
-            "Operasyonel Giderler",
-            "Günlük Rapor",
-            "Haftalık / Aylık Rapor",
-            "Grafiksel Rapor",
-            "Çıkış Yap"
-        ])
-
-        if sayfa == "Profil Bilgileri":
-            get_profile_info()
-        elif sayfa == "İhale Girişi":
-            ihale_girisi()
-        elif sayfa == "Operasyonel Giderler":
-            operasyonel_giderler()
-        elif sayfa == "Günlük Rapor":
-            gunluk_rapor()
-        elif sayfa == "Haftalık / Aylık Rapor":
-            haftalik_aylik_rapor()
-        elif sayfa == "Grafiksel Rapor":
-            grafiksel_rapor()
-        elif sayfa == "Çıkış Yap":
-            st.session_state["logged_in_user"] = None
-            st.experimental_rerun()
+    if secim == "Çıkış":
+        del st.session_state["logged_in_user"]
+        st.experimental_rerun()
+    elif secim == "Kayıt Ol":
+        register()
+    elif secim == "Profil":
+        get_profile_info()
+    elif secim == "İhale Girişi":
+        ihale_girisi()
+    elif secim == "Operasyonel Giderler":
+        operasyonel_giderler()
+    elif secim == "Günlük Rapor":
+        gunluk_rapor()
+    elif secim == "Haftalık/Aylık Rapor":
+        haftalik_aylik_rapor()
 
 if __name__ == "__main__":
     main()
