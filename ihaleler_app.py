@@ -98,10 +98,26 @@ def get_profile_info():
         vehicle_names = []
         trailer_count = st.number_input("Toplam Dorse Sayınız", min_value=0, max_value=100, step=1)
 
-    # Araç isimleri için inputlar
     yeni_vehicle_names = []
- for i in range(vehicle_count):
-    # kodlar
+    for i in range(vehicle_count):
+        default_name = vehicle_names[i] if i < len(vehicle_names) else ""
+        name = st.text_input(f"{i+1}. Araç Adı", value=default_name, key=f"vehicle_{i}")
+        yeni_vehicle_names.append(name)
+
+    if st.button("Profil Bilgilerini Kaydet"):
+        if any(name.strip() == "" for name in yeni_vehicle_names) and vehicle_count > 0:
+            st.error("Tüm araç isimlerini doldurmalısınız.")
+            return
+
+        users[username]["profile"] = {
+            "garage_level": garage_level,
+            "vehicle_count": vehicle_count,
+            "vehicle_names": yeni_vehicle_names,
+            "trailer_count": trailer_count
+        }
+        kayitlari_kaydet(users)
+        st.success("Profil bilgileri kaydedildi.")
+
 
 
 
