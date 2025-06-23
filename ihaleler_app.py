@@ -335,9 +335,6 @@ def grafiksel_rapor():
     if ihaleler.empty:
         st.info("Henüz ihale girişi yapılmadı.")
         return
-    if giderler.empty:
-        st.info("Henüz operasyonel gider girişi yapılmadı.")
-        return
 
     # Filtre için tarih aralığı seçimi
     st.subheader("Tarih Aralığı Seçin")
@@ -352,10 +349,13 @@ def grafiksel_rapor():
     baslangic, bitis = tarih_araligi
 
     ihaleler["tarih_dt"] = pd.to_datetime(ihaleler["tarih"])
-    giderler["tarih_dt"] = pd.to_datetime(giderler["tarih"])
-
     ihaleler_filtered = ihaleler[(ihaleler["tarih_dt"].dt.date >= baslangic) & (ihaleler["tarih_dt"].dt.date <= bitis)]
-    giderler_filtered = giderler[(giderler["tarih_dt"].dt.date >= baslangic) & (giderler["tarih_dt"].dt.date <= bitis)]
+
+    if not giderler.empty:
+        giderler["tarih_dt"] = pd.to_datetime(giderler["tarih"])
+        giderler_filtered = giderler[(giderler["tarih_dt"].dt.date >= baslangic) & (giderler["tarih_dt"].dt.date <= bitis)]
+    else:
+        giderler_filtered = pd.DataFrame()
 
     # 1. Grafik: İhale Türü Dağılımı
     st.subheader("İhale Türü Dağılımı")
@@ -375,11 +375,12 @@ def grafiksel_rapor():
 
     # 3. Grafik: Operasyonel Giderlerin Dağılımı
     st.subheader("Operasyonel Giderlerin Dağılımı")
-    gider_turleri = giderler_filtered.groupby("tip")["tutar"].sum()
-    if gider_turleri.empty:
+    if giderler_filtered.empty:
         st.write("Seçilen dönemde operasyonel gider bulunamadı.")
     else:
+        gider_turleri = giderler_filtered.groupby("tip")["tutar"].sum()
         st.bar_chart(gider_turleri)
+
 
 # ------------------- Ana Fonksiyon -------------------
 
