@@ -28,6 +28,7 @@ def register():
                 "operasyonel_giderler": []
             }
             st.success("Kayıt başarılı! Lütfen giriş yapın.")
+
 def login():
     st.subheader("Giriş Yap")
     username = st.text_input("Kullanıcı Adı", key="login_username")
@@ -35,38 +36,29 @@ def login():
     if st.button("Giriş Yap"):
         if username in st.session_state.users and st.session_state.users[username]["password"] == password:
             st.session_state.logged_in_user = username
-            return True  # Başarılı giriş
+            return True
         else:
             st.error("Kullanıcı adı veya şifre yanlış.")
     return False
 
-# Ana döngede
+def logout():
+    st.session_state.logged_in_user = None
+    st.experimental_rerun()
 
-def main():
-    st.title("İhale Oyunu Takip Uygulaması")
+# ----------- Profil Bilgileri (İlk Kayıt Sonrası) -------------
 
-    if st.session_state.logged_in_user is None:
-        secim = st.radio("Giriş veya Kayıt Ol", ["Giriş Yap", "Kayıt Ol"])
-        if secim == "Giriş Yap":
-            giris_basari = login()
-            if giris_basari:
-                st.experimental_rerun()
-        else:
-            register()
-    else:
-            def get_profile_info():
-               st.subheader("Profil Bilgileri - İlk Kayıt")
-                garage_level = st.number_input("Garaj Seviyeniz", min_value=1, max_value=100, step=1)
-                vehicle_count = st.number_input("Araç Sayınız", min_value=0, step=1)
-                 vehicle_names = []
-     for i in range(vehicle_count):
+def get_profile_info():
+    st.subheader("Profil Bilgileri - İlk Kayıt")
+    garage_level = st.number_input("Garaj Seviyeniz", min_value=1, max_value=100, step=1)
+    vehicle_count = st.number_input("Araç Sayınız", min_value=0, step=1)
+    vehicle_names = []
+    for i in range(vehicle_count):
         name = st.text_input(f"Araç {i+1} Adı", key=f"vehicle_name_{i}")
         vehicle_names.append(name)
     trailer_count = st.number_input("Toplam Dorse Sayınız", min_value=0, step=1)
 
     if st.button("Profil Bilgilerini Kaydet"):
-        # Boş isim kontrolü
-        if any([name.strip() == "" for name in vehicle_names]):
+        if any([name.strip() == "" for name in vehicle_names]) and vehicle_count > 0:
             st.warning("Lütfen tüm araç isimlerini doldurun.")
             return
         st.session_state.users[st.session_state.logged_in_user]["profile"] = {
@@ -122,10 +114,38 @@ def operasyonel_giderler():
     with col2:
         garaj_yuksektme_maliyeti = st.number_input("Yükseltme Maliyeti (USD)", min_value=0.0, step=0.01)
 
+    # Garaj seviye yükseltmesi yapıldıysa profile güncelle
+    if st.button("Garaj Yükseltmesini Kaydet"):
+        if yeni_garaj_seviyesi > profile["garage_level"]:
+            profile["garage_level"] = yeni_garaj_seviyesi
+            # Operasyonel gider olarak ekle
+            user_data["operasyonel_giderler"].append({
+                "tip": "Garaj Seviye Yükseltme",
+                "tutar": garaj_yuksektme_maliyeti,
+                "tarih": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            })
+            st.success("Garaj seviyesi yükseltildi ve maliyet kaydedildi.")
+            st.experimental_rerun()
+        else:
+            st.warning("Yeni seviye mevcut seviyeden yüksek olmalı.")
+
+    # Garaj bakımı maliyeti eklensin
+    if st.button("Garaj Bakımı Kaydet"):
+        if garaj_bakimi > 0:
+            user_data["operasyonel_giderler"].append({
+                "tip": "Garaj Bakımı",
+                "tutar": garaj_bakimi,
+                "tarih": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            })
+            st.success("Garaj bakımı gideri kaydedildi.")
+            st.experimental_rerun()
+        else:
+            st.warning("Lütfen pozitif bir tutar girin.")
+
     # 3. Maaş Ödemesi
     st.subheader("Şoför Maaşları")
-    maas_adi = st.text_input("Şoför Adı")
-    maas_tutari = st.number_input("Maaş Tutarı (USD)", min_value=0.0, step=0.01)
+    maas_adi = st.text_input("Şoför Adı", key="maas_adi")
+    maas_tutari = st.number_input("Maaş Tutarı (USD)", min_value=0.0, step=0.01, key="maas_tutari")
     if st.button("Maaş Ekle"):
         if maas_adi.strip() == "":
             st.warning("Lütfen şoför adını girin.")
@@ -167,10 +187,8 @@ def operasyonel_giderler():
         if yeni_arac_adi.strip() == "":
             st.warning("Lütfen araç adını girin.")
         else:
-            # Araç sayısını ve listeyi güncelle
             profile["vehicle_names"].append(yeni_arac_adi)
             profile["vehicle_count"] += 1
-
             gider = {
                 "tip": "Araç Alımı",
                 "arac": yeni_arac_adi,
@@ -183,29 +201,31 @@ def operasyonel_giderler():
 
     # 6. Araç Satımı
     st.subheader("Araç Satımı")
-    satilacak_arac = st.selectbox("Satılan Aracı Seçin", arac_listesi, key="satilan_arac_secimi")
-    satis_tutari = st.number_input("Satış Tutarı (USD)", min_value=0.0, step=0.01, key="satis_tutari")
-    if st.button("Araç Satışını Kaydet"):
-        # Araç listeden çıkar
-        if satilacak_arac in profile["vehicle_names"]:
-            profile["vehicle_names"].remove(satilacak_arac)
-            profile["vehicle_count"] -= 1
-            gider = {
-                "tip": "Araç Satımı",
-                "arac": satilacak_arac,
-                "tutar": -satis_tutari,  # Satıştan para kazanıldığı için negatif gider olarak eklenir
-                "tarih": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            }
-            user_data["operasyonel_giderler"].append(gider)
-            st.success(f"{satilacak_arac} satıldı ve listeden çıkarıldı.")
-            st.experimental_rerun()
-        else:
-            st.warning("Bu araç zaten satılmış veya listede yok.")
+    if len(arac_listesi) == 0:
+        st.info("Satılacak araç bulunmamaktadır.")
+    else:
+        satilacak_arac = st.selectbox("Satılan Aracı Seçin", arac_listesi, key="satilan_arac_secimi")
+        satis_tutari = st.number_input("Satış Tutarı (USD)", min_value=0.0, step=0.01, key="satis_tutari")
+        if st.button("Araç Satışını Kaydet"):
+            if satilacak_arac in profile["vehicle_names"]:
+                profile["vehicle_names"].remove(satilacak_arac)
+                profile["vehicle_count"] -= 1
+                gider = {
+                    "tip": "Araç Satımı",
+                    "arac": satilacak_arac,
+                    "tutar": -satis_tutari,
+                    "tarih": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                }
+                user_data["operasyonel_giderler"].append(gider)
+                st.success(f"{satilacak_arac} satıldı ve listeden çıkarıldı.")
+                st.experimental_rerun()
+            else:
+                st.warning("Bu araç zaten satılmış veya listede yok.")
 
     # 7. Dorse Alımı
     st.subheader("Dorse Alımı")
-    dorse_tipi = st.text_input("Alınan Dorse Tipi")
-    dorse_maliyeti = st.number_input("Dorse Maliyeti (USD)", min_value=0.0, step=0.01)
+    dorse_tipi = st.text_input("Alınan Dorse Tipi", key="dorse_tipi")
+    dorse_maliyeti = st.number_input("Dorse Maliyeti (USD)", min_value=0.0, step=0.01, key="dorse_maliyeti")
     if st.button("Dorse Alımını Kaydet"):
         if dorse_tipi.strip() == "":
             st.warning("Lütfen dorse tipini girin.")
@@ -217,15 +237,14 @@ def operasyonel_giderler():
                 "tarih": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             }
             user_data["operasyonel_giderler"].append(gider)
-            # Dorse sayısını güncelle
             profile["trailer_count"] += 1
             st.success(f"{dorse_tipi} tipi dorse alındı.")
             st.experimental_rerun()
 
     # 8. Emeklilik / İşten Kovma
     st.subheader("Emeklilik ve İşten Kovma")
-    kovulan_sofor = st.text_input("İşten Kovulan veya Emekli Olan Şoför Adı")
-    tazminat_tutari = st.number_input("Tazminat Tutarı (USD)", min_value=0.0, step=0.01)
+    kovulan_sofor = st.text_input("İşten Kovulan veya Emekli Olan Şoför Adı", key="kovulan_sofor")
+    tazminat_tutari = st.number_input("Tazminat Tutarı (USD)", min_value=0.0, step=0.01, key="tazminat_tutari")
     if st.button("Emeklilik/Kovma Kaydet"):
         if kovulan_sofor.strip() == "":
             st.warning("Lütfen şoför adını girin.")
@@ -242,18 +261,21 @@ def operasyonel_giderler():
 
     # 9. Araç Yükseltme Bedeli
     st.subheader("Araç Yükseltme Bedeli")
-    arac_yukseltme = st.selectbox("Yükseltilecek Aracı Seçin", arac_listesi, key="arac_yukseltme_secimi")
-    yukseltme_tutari = st.number_input("Yükseltme Tutarı (USD)", min_value=0.0, step=0.01)
-    if st.button("Araç Yükseltme Kaydet"):
-        gider = {
-            "tip": "Araç Yükseltme",
-            "arac": arac_yukseltme,
-            "tutar": yukseltme_tutari,
-            "tarih": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        }
-        user_data["operasyonel_giderler"].append(gider)
-        st.success(f"{arac_yukseltme} için yükseltme kaydedildi.")
-        st.experimental_rerun()
+    if len(arac_listesi) == 0:
+        st.info("Öncelikle araç ekleyin.")
+    else:
+        arac_yukseltme = st.selectbox("Yükseltilecek Aracı Seçin", arac_listesi, key="arac_yukseltme_secimi")
+        yukseltme_tutari = st.number_input("Yükseltme Tutarı (USD)", min_value=0.0, step=0.01, key="yukseltme_tutari")
+        if st.button("Araç Yükseltme Kaydet"):
+            gider = {
+                "tip": "Araç Yükseltme",
+                "arac": arac_yukseltme,
+                "tutar": yukseltme_tutari,
+                "tarih": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            }
+            user_data["operasyonel_giderler"].append(gider)
+            st.success(f"{arac_yukseltme} için yükseltme kaydedildi.")
+            st.experimental_rerun()
 
 # ----------- Günlük Rapor -------------
 
@@ -314,23 +336,29 @@ def grafiksel_rapor():
 
     # 1. Grafik: İhale Türü Dağılımı
     st.subheader("İhale Türü Dağılımı")
-    ihale_tur_sayilari = ihaleler_filtered["ihale_turu"].value_counts()
-    st.bar_chart(ihale_tur_sayilari)
+    if ihaleler_filtered.empty:
+        st.write("Seçilen dönemde ihale bulunamadı.")
+    else:
+        ihale_turleri = ihaleler_filtered["ihale_turu"].value_counts()
+        st.bar_chart(ihale_turleri)
 
     # 2. Grafik: İhale Türlerine Göre Gelirler
     st.subheader("İhale Türlerine Göre Gelirler")
-    gelirler = ihaleler_filtered.groupby("ihale_turu")["ihale_bedeli"].sum()
-    st.bar_chart(gelirler)
+    if ihaleler_filtered.empty:
+        st.write("Seçilen dönemde ihale bulunamadı.")
+    else:
+        gelirler = ihaleler_filtered.groupby("ihale_turu")["ihale_bedeli"].sum()
+        st.bar_chart(gelirler)
 
     # 3. Grafik: Operasyonel Giderlerin Dağılımı
-    if not giderler_filtered.empty:
-        st.subheader("Operasyonel Giderlerin Dağılımı")
-        gider_tipi_toplam = giderler_filtered.groupby("tip")["tutar"].sum()
-        st.bar_chart(gider_tipi_toplam)
+    st.subheader("Operasyonel Giderlerin Dağılımı")
+    if giderler_filtered.empty:
+        st.write("Seçilen dönemde operasyonel gider bulunamadı.")
     else:
-        st.info("Henüz operasyonel gider verisi yok.")
+        gider_turleri = giderler_filtered.groupby("tip")["tutar"].sum()
+        st.bar_chart(gider_turleri)
 
-# ----------- Ana Akış -------------
+# ----------- Ana Fonksiyon -------------
 
 def main():
     st.title("İhale Oyunu Takip Uygulaması")
@@ -338,30 +366,33 @@ def main():
     if st.session_state.logged_in_user is None:
         secim = st.radio("Giriş veya Kayıt Ol", ["Giriş Yap", "Kayıt Ol"])
         if secim == "Giriş Yap":
-            login()
+            giris_basari = login()
+            if giris_basari:
+                st.experimental_rerun()
         else:
             register()
     else:
-        st.sidebar.title(f"Hoşgeldin, {st.session_state.logged_in_user}!")
-        if st.sidebar.button("Çıkış Yap"):
-            logout()
-
         user_data = st.session_state.users[st.session_state.logged_in_user]
 
+        # Eğer profil bilgisi yoksa önce profil formunu göster
         if user_data["profile"] is None:
             get_profile_info()
-        else:
-            sekme = st.sidebar.radio("Sekmeler", ["İhale Girişi", "Operasyonel Giderler", "Günlük Rapor", "Raporlar"])
+            return
 
-            if sekme == "İhale Girişi":
-                ihale_girisi()
-            elif sekme == "Operasyonel Giderler":
-                operasyonel_giderler()
-            elif sekme == "Günlük Rapor":
-                gunluk_rapor()
-            elif sekme == "Raporlar":
-                grafiksel_rapor()
+        sekme = st.sidebar.selectbox("Sekmeler", ["İhale Girişi", "Operasyonel Giderler", "Günlük Rapor", "Raporlar"])
+
+        if st.sidebar.button("Çıkış Yap"):
+            logout()
+            return
+
+        if sekme == "İhale Girişi":
+            ihale_girisi()
+        elif sekme == "Operasyonel Giderler":
+            operasyonel_giderler()
+        elif sekme == "Günlük Rapor":
+            gunluk_rapor()
+        elif sekme == "Raporlar":
+            grafiksel_rapor()
 
 if __name__ == "__main__":
     main()
-
