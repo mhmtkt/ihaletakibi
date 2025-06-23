@@ -100,7 +100,9 @@ def get_profile_info():
 
     # Araç isimleri için inputlar
     yeni_vehicle_names = []
-    for i in range(
+ for i in range(vehicle_count):
+    # kodlar
+
 
 
 # ------------------- İhale Girişi -------------------
