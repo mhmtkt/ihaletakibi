@@ -83,32 +83,25 @@ def register():
 def get_profile_info():
     st.subheader("Profil Bilgilerinizi Girin")
 
-    garage_level = st.number_input("Garaj Seviyeniz", min_value=1, max_value=100, step=1)
-    vehicle_count = st.number_input("Araç Sayınız", min_value=0, max_value=100, step=1)
+    username = st.session_state["logged_in_user"]
+    users = st.session_state["users"]
+    mevcut_profil = users[username].get("profile")
 
-    vehicle_names = []
-    for i in range(vehicle_count):
-        name = st.text_input(f"{i+1}. Araç Adı", key=f"vehicle_{i}")
-        vehicle_names.append(name)
+    if mevcut_profil:
+        garage_level = st.number_input("Garaj Seviyeniz", min_value=1, max_value=100, step=1, value=mevcut_profil.get("garage_level", 1))
+        vehicle_count = st.number_input("Araç Sayınız", min_value=0, max_value=100, step=1, value=mevcut_profil.get("vehicle_count", 0))
+        vehicle_names = mevcut_profil.get("vehicle_names", [])
+        trailer_count = st.number_input("Toplam Dorse Sayınız", min_value=0, max_value=100, step=1, value=mevcut_profil.get("trailer_count", 0))
+    else:
+        garage_level = st.number_input("Garaj Seviyeniz", min_value=1, max_value=100, step=1)
+        vehicle_count = st.number_input("Araç Sayınız", min_value=0, max_value=100, step=1)
+        vehicle_names = []
+        trailer_count = st.number_input("Toplam Dorse Sayınız", min_value=0, max_value=100, step=1)
 
-    trailer_count = st.number_input("Toplam Dorse Sayınız", min_value=0, max_value=100, step=1)
+    # Araç isimleri için inputlar
+    yeni_vehicle_names = []
+    for i in range(
 
-    if st.button("Profil Bilgilerini Kaydet"):
-        if any(name == "" for name in vehicle_names):
-            st.error("Tüm araç isimlerini doldurmalısınız.")
-            return
-
-        username = st.session_state["logged_in_user"]
-        users = st.session_state["users"]
-        users[username]["profile"] = {
-            "garage_level": garage_level,
-            "vehicle_count": vehicle_count,
-            "vehicle_names": vehicle_names,
-            "trailer_count": trailer_count
-        }
-        kayitlari_kaydet(users)
-        st.success("Profil bilgileri kaydedildi.")
-        st.experimental_rerun()
 
 # ------------------- İhale Girişi -------------------
 def ihale_girisi():
