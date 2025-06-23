@@ -317,10 +317,11 @@ def gunluk_rapor():
     toplam_kar = toplam_ihale_geliri - toplam_urun_maliyeti - toplam_operasyonel_gider
 
     st.write(f"Günlük Toplam İhale Sayısı: {toplam_ihale_sayisi}")
-    st.write(f"Günlük Toplam İhale Geliri (USD): {toplam_ihale_geliri:.2f}")
-    st.write(f"Günlük Ürün Maliyeti (USD): {toplam_urun_maliyeti:.2f}")
-    st.write(f"Günlük Operasyonel Maliyet (USD): {toplam_operasyonel_gider:.2f}")
-    st.write(f"Günlük Toplam Kar (USD): {toplam_kar:.2f}")
+    st.write(f"Günlük Toplam İhale Geliri (USD): {sayi_formatla(int(toplam_ihale_geliri))}")
+    st.write(f"Günlük Ürün Maliyeti (USD): {sayi_formatla(int(toplam_urun_maliyeti))}")
+    st.write(f"Günlük Operasyonel Maliyet (USD): {sayi_formatla(int(toplam_operasyonel_gider))}")
+    st.write(f"Günlük Toplam Kar (USD): {sayi_formatla(int(toplam_kar))}")
+
 
 # ------------------- Grafiksel Rapor -------------------
 
