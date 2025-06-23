@@ -323,8 +323,6 @@ def gunluk_rapor():
     st.write(f"Günlük Toplam Kar (USD): {sayi_formatla(int(toplam_kar))}")
 
 
-# ------------------- Grafiksel Rapor -------------------
-
 def grafiksel_rapor():
     st.header("Grafiksel Raporlar")
     user = st.session_state["users"][st.session_state["logged_in_user"]]
@@ -334,6 +332,9 @@ def grafiksel_rapor():
 
     if ihaleler.empty:
         st.info("Henüz ihale girişi yapılmadı.")
+        return
+    if giderler.empty:
+        st.info("Henüz operasyonel gider girişi yapılmadı.")
         return
 
     # Filtre için tarih aralığı seçimi
@@ -349,13 +350,10 @@ def grafiksel_rapor():
     baslangic, bitis = tarih_araligi
 
     ihaleler["tarih_dt"] = pd.to_datetime(ihaleler["tarih"])
-    ihaleler_filtered = ihaleler[(ihaleler["tarih_dt"].dt.date >= baslangic) & (ihaleler["tarih_dt"].dt.date <= bitis)]
+    giderler["tarih_dt"] = pd.to_datetime(giderler["tarih"])
 
-    if not giderler.empty:
-        giderler["tarih_dt"] = pd.to_datetime(giderler["tarih"])
-        giderler_filtered = giderler[(giderler["tarih_dt"].dt.date >= baslangic) & (giderler["tarih_dt"].dt.date <= bitis)]
-    else:
-        giderler_filtered = pd.DataFrame()
+    ihaleler_filtered = ihaleler[(ihaleler["tarih_dt"].dt.date >= baslangic) & (ihaleler["tarih_dt"].dt.date <= bitis)]
+    giderler_filtered = giderler[(giderler["tarih_dt"].dt.date >= baslangic) & (giderler["tarih_dt"].dt.date <= bitis)]
 
     # 1. Grafik: İhale Türü Dağılımı
     st.subheader("İhale Türü Dağılımı")
@@ -375,12 +373,11 @@ def grafiksel_rapor():
 
     # 3. Grafik: Operasyonel Giderlerin Dağılımı
     st.subheader("Operasyonel Giderlerin Dağılımı")
-    if giderler_filtered.empty:
+    gider_turleri = giderler_filtered.groupby("tip")["tutar"].sum()
+    if gider_turleri.empty:
         st.write("Seçilen dönemde operasyonel gider bulunamadı.")
     else:
-        gider_turleri = giderler_filtered.groupby("tip")["tutar"].sum()
         st.bar_chart(gider_turleri)
-
 
 # ------------------- Ana Fonksiyon -------------------
 
