@@ -1,7 +1,30 @@
 import streamlit as st
 from datetime import datetime
 import pandas as pd
-
+def sayi_formatla(sayi):
+    if sayi >= 1_000_000:
+        milyon = sayi // 1_000_000
+        kalan = sayi % 1_000_000
+        if kalan == 0:
+            return f"{milyon} milyon"
+        else:
+            binler = kalan // 1000
+            yuzler = kalan % 1000
+            parcalar = []
+            if binler > 0:
+                parcalar.append(f"{binler} bin")
+            if yuzler > 0:
+                parcalar.append(f"{yuzler}")
+            return f"{milyon} milyon " + " ".join(parcalar)
+    elif sayi >= 1000:
+        binler = sayi // 1000
+        yuzler = sayi % 1000
+        if yuzler == 0:
+            return f"{binler} bin"
+        else:
+            return f"{binler} bin {yuzler}"
+    else:
+        return str(sayi)
 # ------------------- Kullanıcı Yönetimi -------------------
 
 if "users" not in st.session_state:
