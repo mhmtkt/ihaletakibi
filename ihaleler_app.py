@@ -1,10 +1,40 @@
-# ihaleler_app.py
 import streamlit as st
 import json
-import os
-from datetime import datetime, timedelta
-import pandas as pd
-import matplotlib.pyplot as plt
+from firebase_admin import credentials, initialize_app, firestore
+import pyrebase
+
+firebase_secrets = st.secrets["firebase"]
+
+cred_dict = {
+    "type": firebase_secrets["type"],
+    "project_id": firebase_secrets["project_id"],
+    "private_key_id": firebase_secrets["private_key_id"],
+    "private_key": firebase_secrets["private_key"].replace("\\n", "\n"),
+    "client_email": firebase_secrets["client_email"],
+    "client_id": firebase_secrets["client_id"],
+    "auth_uri": firebase_secrets["auth_uri"],
+    "token_uri": firebase_secrets["token_uri"],
+    "auth_provider_x509_cert_url": firebase_secrets["auth_provider_x509_cert_url"],
+    "client_x509_cert_url": firebase_secrets["client_x509_cert_url"],
+}
+
+cred = credentials.Certificate(cred_dict)
+initialize_app(cred)
+db = firestore.client()
+
+firebaseConfig = {
+    "apiKey": firebase_secrets["apiKey"],
+    "authDomain": firebase_secrets["authDomain"],
+    "databaseURL": firebase_secrets["databaseURL"],
+    "projectId": firebase_secrets["projectId"],
+    "storageBucket": firebase_secrets["storageBucket"],
+    "messagingSenderId": firebase_secrets["messagingSenderId"],
+    "appId": firebase_secrets["appId"],
+}
+
+firebase = pyrebase.initialize_app(firebaseConfig)
+auth = firebase.auth()
+
 
 DOSYA_ADI = "users.json"
 
